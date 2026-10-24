@@ -1,9 +1,9 @@
 """The TCP-to-Unix-socket forwarder: bytes go both ways, half-closes pass through, a missing socket just drops the connection."""
 import os
 import socket
+import sys
 import threading
 
-import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "forwarder"))
 import forward
 
