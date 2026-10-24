@@ -33,4 +33,5 @@ services:
 networks:
   vscode_net:
     name: ${CLH_NETWORK:-vscode_net}
+    driver: bridge
     internal: true                     # no route out, and nothing but the bastion should be attached
