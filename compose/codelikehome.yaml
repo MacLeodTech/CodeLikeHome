@@ -8,7 +8,7 @@
 # Your bastion container must join the `vscode_net` network (see docs/02-setup.md).
 services:
   vscode:
-    image: ${CLH_IMAGE:-ghcr.io/fiddler110/codelikehome-forwarder}:${CLH_TAG:?set CLH_TAG to a release, e.g. 0.1.0}
+    image: ${CLH_IMAGE:-ghcr.io/macleodtech/codelikehome-forwarder}:${CLH_TAG:?set CLH_TAG to a release, e.g. 0.1.0}
     pull_policy: ${CLH_PULL_POLICY:-missing}
     container_name: ${CLH_CONTAINER:-vscode}
     restart: unless-stopped
