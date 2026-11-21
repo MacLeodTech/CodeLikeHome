@@ -1,0 +1,27 @@
+# Installed by CodeLikeHome (version @VERSION@). Edit via host/install.sh, not by hand.
+[Unit]
+Description=code-server (VS Code in the browser), runs as @USER@
+After=local-fs.target
+
+[Service]
+Type=simple
+# Started as root only to drop to the user. Profile @PROFILE@: supplementary groups are set by setpriv (`--clear-groups` leaves
+# out `docker`, which is root-equivalent; `--init-groups` gives the user's login groups; `--groups a,b` gives exactly those).
+# With no extra groups, anything privileged goes through `sudo` and the user's password.
+# NoNewPrivileges is left off on purpose, sudo needs its setuid bit.
+ExecStart=/usr/bin/setpriv --reuid=@UID@ --regid=@GID@ @GROUPFLAG@ @HOME@/.local/bin/code-server --config @HOME@/.config/code-server/config.yaml @WORKSPACE@
+@ENVFILE@
+Environment=HOME=@HOME@ USER=@USER@ LOGNAME=@USER@ SHELL=@SHELL@
+Environment=PATH=@HOME@/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+WorkingDirectory=@HOME@
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+RestrictRealtime=yes
+UMask=@UMASK@
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

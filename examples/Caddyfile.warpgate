@@ -1,0 +1,25 @@
+# The public face: Warpgate does its own authentication, so no forward_auth in front of it.
+warpgate.example.com {
+	# Password login only from the home network; remote users must use SSO.
+	# Traffic that arrives through a Cloudflare tunnel comes from a private Docker IP, so remote_ip cannot tell it apart:
+	# Cloudflare's edge always sets Cf-Connecting-Ip, so its presence marks tunnelled traffic.
+	@remote_password_login {
+		path /@warpgate/api/auth/login
+		header Cf-Connecting-Ip *
+	}
+	@wan_password_login {
+		path /@warpgate/api/auth/login
+		not remote_ip private_ranges
+	}
+	respond @remote_password_login "Password login is only available from the home network. Use SSO." 403
+	respond @wan_password_login "Password login is only available from the home network. Use SSO." 403
+
+	reverse_proxy https://warpgate:8888 {
+		transport http {
+			tls_insecure_skip_verify      # Warpgate serves a self-signed certificate on the internal hop
+		}
+		header_up Host {host}
+		header_down +Cache-Control "no-transform"    # stop Cloudflare's Rocket Loader rewriting the VS Code workbench
+		flush_interval -1                            # do not buffer: the editor is mostly websocket traffic
+	}
+}

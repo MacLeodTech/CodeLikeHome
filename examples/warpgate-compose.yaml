@@ -1,0 +1,27 @@
+# A minimal Warpgate bastion that can join the CodeLikeHome network. Start it AFTER the forwarder (so vscode_net exists), or declare
+# the network here instead. Warpgate's own configuration lives in ./warpgate-data (created by `warpgate setup`, see docs/00-zero-to-hero.md).
+# The container name matters: it must equal CLH_ALLOW in .env, because the forwarder admits only that peer.
+services:
+  warpgate:
+    image: ghcr.io/warp-tech/warpgate:latest     # pin a release tag or digest once it works
+    container_name: warpgate                     # = CLH_ALLOW
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"   # it holds target credentials; update it deliberately, not automatically
+    environment:
+      - TZ=${TZ:-UTC}
+    volumes:
+      - ./warpgate-data:/data
+    # Publish nothing here if a reverse proxy on a shared Docker network fronts it. If you have no proxy, publish 8888 (HTTPS, self-signed)
+    # to the proxy host only, never to the internet directly:
+    # ports: ["127.0.0.1:8888:8888"]
+    # Optional SSH bastion for the rest of your hosts. LAN only: never forward this port on your router.
+    # ports: ["2222:2222"]
+    networks:
+      - default
+      - vscode_net
+networks:
+  vscode_net:
+    external: true       # created by compose/codelikehome.yaml

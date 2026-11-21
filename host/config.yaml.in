@@ -1,0 +1,7 @@
+# code-server config, written by CodeLikeHome (version @VERSION@).
+# No TCP port at all: code-server listens on a mode-600 Unix socket that only the forwarder container can reach.
+socket: @SOCKET@
+socket-mode: 600
+auth: none            # the bastion (SSO + a second factor) is the gate. Use `auth: password` for a second factor at the editor.
+cert: false           # TLS ends at the reverse proxy; the hops behind it are on internal Docker networks
+disable-telemetry: true

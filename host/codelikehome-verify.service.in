@@ -1,0 +1,7 @@
+[Unit]
+Description=CodeLikeHome: check that only the bastion can reach the editor
+
+[Service]
+Type=oneshot
+# Runs as root so it can read every process's groups and the socket whatever the editor does. Output goes to the journal.
+ExecStart=/usr/local/lib/codelikehome/verify.sh --user @USER@ --notify-on-failure

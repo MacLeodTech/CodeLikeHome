@@ -1,0 +1,37 @@
+# The forwarder: the only container that touches the editor, and it can reach nothing but the socket's directory.
+# Include it from your own compose project:
+#
+#   include:
+#     - path: ./CodeLikeHome/compose/codelikehome.yaml
+#       env_file: ./CodeLikeHome/.env          # copy .env.example to .env and edit
+#
+# Your bastion container must join the `vscode_net` network (see docs/02-setup.md).
+services:
+  vscode:
+    image: ${CLH_IMAGE:-ghcr.io/macleodtech/codelikehome-forwarder}:${CLH_TAG:?set CLH_TAG to a release, e.g. 0.1.0}
+    pull_policy: ${CLH_PULL_POLICY:-missing}
+    container_name: ${CLH_CONTAINER:-vscode}
+    restart: unless-stopped
+    user: "${CLH_UID:?set CLH_UID to the editor's uid}:${CLH_UID}"      # the same uid as the editor, so it may open the mode-600 socket
+    environment:
+      FORWARD_UNIX: /run/code-server/code-server.sock
+      FORWARD_LISTEN: "8443"
+      FORWARD_ALLOW: ${CLH_ALLOW:-warpgate}        # only these host names' addresses may connect, resolved per connection
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    volumes:
+      - ${CLH_SOCKET_DIR:?set CLH_SOCKET_DIR to the socket directory}:/run/code-server     # the socket's directory, nothing else
+    networks: [vscode_net]
+    healthcheck:
+      test: ['CMD', 'python', '-c', 'import socket; socket.create_connection(("127.0.0.1", 8443), 3)']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy: {resources: {limits: {memory: 64M}}}
+
+networks:
+  vscode_net:
+    name: ${CLH_NETWORK:-vscode_net}
+    driver: bridge
+    internal: true                     # no route out, and nothing but the bastion should be attached
