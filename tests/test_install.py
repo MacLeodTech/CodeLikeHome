@@ -11,6 +11,7 @@ def dry(*args):
     return subprocess.run(
         ["sh", str(SCRIPT), "--user", getpass.getuser(), "--dry-run", *args],
         capture_output=True,
+        check=False,
         text=True,
     )
 
@@ -42,4 +43,4 @@ def test_rejects_bad_values():
 
 
 def _has_group(name):
-    return subprocess.run(["getent", "group", name], capture_output=True).returncode == 0
+    return subprocess.run(["getent", "group", name], check=False, capture_output=True).returncode == 0
