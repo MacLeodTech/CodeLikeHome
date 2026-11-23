@@ -10,13 +10,13 @@ while [ $# -gt 0 ]; do case $1 in
 ok() { printf 'ok    %s\n' "$1"; }; bad() { printf 'FAIL  %s\n' "$1"; fails="$fails; $1"; rc=1; }; skip() { printf 'skip  %s\n' "$1"; }
 rc=0; fails=""
 # What the installer was asked for (host/install.sh --profile). Without the file, check against the strictest settings.
-profile=strict; pgroups=none; pumask=0077; psudo=5
+profile=strict; pgroups=none; pumask=0077; psudo=5; gate=0; gusers=""
 if [ -r /etc/codelikehome/profile ]; then
-  for k in profile groups umask sudo_timeout; do v=$(sed -n "s/^$k=//p" /etc/codelikehome/profile | head -n1); [ -n "$v" ] || continue
-    case $k in profile) profile=$v;; groups) pgroups=$v;; umask) pumask=$v;; sudo_timeout) psudo=$v;; esac; done
+  for k in profile groups umask sudo_timeout gate users; do v=$(sed -n "s/^$k=//p" /etc/codelikehome/profile | head -n1); [ -n "$v" ] || continue
+    case $k in profile) profile=$v;; groups) pgroups=$v;; umask) pumask=$v;; sudo_timeout) psudo=$v;; gate) gate=$v;; users) gusers=$v;; esac; done
 fi
 echo "info  profile: $profile (groups=$pgroups umask=$pumask sudo cache=${psudo}m)"
-home=$(getent passwd "$user" | cut -d: -f6); uid=$(id -u "$user")
+home=$(getent passwd "$user" | cut -d: -f6)
 sock="$home/.local/run/code-server/code-server.sock"
 [ "$(stat -c %a "$sock" 2>/dev/null)" = 600 ] && ok "socket is mode 600" || bad "socket missing or not mode 600"
 [ "$(stat -c %U "$sock" 2>/dev/null)" = "$user" ] && ok "socket is owned by $user" || bad "socket is not owned by $user"
@@ -32,14 +32,17 @@ if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
 else skip "docker not usable by this user: network and container checks"; fi
 # The check that matters is the EDITOR's groups and umask, not a login shell's (a login shell normally has docker; the unit
 # sets them per profile). Allowed groups: the primary group plus whatever the profile grants; any other group is drift.
-dgid=$(getent group docker | cut -d: -f3); pids=$(pgrep -u "$uid" -f '/code-server-[0-9.]*/lib/node' 2>/dev/null)
-gid=$(id -g "$user")
-case $pgroups in
-  none) allowed=" $gid ";;
-  login) allowed=" $gid $(id -G "$user") ";;
-  *) allowed=" $gid"; for g in $(echo "$pgroups" | tr ',' ' '); do allowed="$allowed $(getent group "$g" | cut -d: -f3)"; done; allowed="$allowed ";;
-esac
-if [ -z "$pids" ]; then bad "no code-server process found"; else
+dgid=$(getent group docker | cut -d: -f3)
+check_editor() { eu=$1; euid=$(id -u "$eu"); egid=$(id -g "$eu")
+  pids=$(pgrep -u "$euid" -f '/code-server-[0-9.]*/lib/node' 2>/dev/null)
+  case $pgroups in
+    none) allowed=" $egid ";;
+    login) allowed=" $egid $(id -G "$eu") ";;
+    *) allowed=" $egid"; for g in $(echo "$pgroups" | tr ',' ' '); do allowed="$allowed $(getent group "$g" | cut -d: -f3)"; done; allowed="$allowed ";;
+  esac
+  if [ -z "$pids" ]; then
+    if [ "$gate" = 1 ]; then echo "info  no editor running for $eu (the gate starts it at sign-in)"; else bad "no code-server process found"; fi
+    return; fi
   extra=""; hasdocker=0; badumask=""
   for p in $pids; do
     g=$(awk '/^Groups:/{$1="";print}' /proc/$p/status 2>/dev/null)
@@ -47,10 +50,19 @@ if [ -z "$pids" ]; then bad "no code-server process found"; else
     u=$(awk '/^Umask:/{print $2}' /proc/$p/status 2>/dev/null)
     [ -z "$u" ] || [ "$(printf '%o' "0$u")" = "$(printf '%o' "0$pumask")" ] || badumask="$badumask $p:$u"
   done
-  [ -z "$extra" ] && ok "code-server groups match the profile ($pgroups)" || bad "code-server has groups the profile does not grant:$extra"
-  if [ $hasdocker = 1 ]; then echo "info  code-server is in the docker group (profile $profile): the editor is root-equivalent"; fi
-  [ -z "$badumask" ] && ok "code-server umask is $pumask" || bad "code-server umask differs from the profile ($pumask):$badumask"
-fi
+  [ -z "$extra" ] && ok "code-server ($eu) groups match the profile ($pgroups)" || bad "code-server ($eu) has groups the profile does not grant:$extra"
+  if [ $hasdocker = 1 ]; then echo "info  code-server ($eu) is in the docker group (profile $profile): the editor is root-equivalent"; fi
+  [ -z "$badumask" ] && ok "code-server ($eu) umask is $pumask" || bad "code-server ($eu) umask differs from the profile ($pumask):$badumask"
+}
+if [ "$gate" = 1 ]; then
+  systemctl is-active --quiet codelikehome-gate 2>/dev/null && ok "codelikehome-gate is running" || bad "codelikehome-gate is not running"
+  for f in /usr/local/lib/codelikehome/gate.py /usr/local/lib/codelikehome/run-editor /etc/codelikehome/gate.users /etc/pam.d/codelikehome; do
+    [ "$(stat -c %U "$f" 2>/dev/null)" = root ] && [ -z "$(find "$f" -perm /022 2>/dev/null)" ] && ok "$f is root-owned and not writable by others" || bad "$f is missing, not root-owned or writable by others"
+  done
+  for d in /run/codelikehome/users/*/; do [ -d "$d" ] || continue
+    [ "$(stat -c %a "$d")" = 700 ] && ok "$d is mode 700" || bad "$d is not mode 700"; done
+  for u in $(echo "$gusers" | tr ',' ' '); do check_editor "$u"; done
+else check_editor "$user"; fi
 if [ "$(id -u)" = 0 ]; then
   t=$(cat /etc/sudoers.d/90-codelikehome-timeout 2>/dev/null | sed -n 's/.*timestamp_timeout=\([0-9]*\).*/\1/p')
   [ -n "$t" ] && [ "$t" -le "$psudo" ] && ok "sudo password cache is $t minutes" || bad "sudo password cache is not set to $psudo minutes or less"

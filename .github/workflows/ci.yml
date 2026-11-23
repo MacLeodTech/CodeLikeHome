@@ -15,6 +15,6 @@ jobs:
       - run: ruff check .
       - run: pytest -q
       - name: Shell scripts parse
-        run: for f in host/install.sh host/verify.sh; do sh -n "$f"; done
+        run: for f in host/install.sh host/verify.sh host/run-editor.sh; do sh -n "$f"; done
       - name: Compose file renders
         run: CLH_TAG=0.0.0 CLH_UID=1000 CLH_SOCKET_DIR=/tmp/x docker compose -f compose/codelikehome.yaml config -q

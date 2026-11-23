@@ -16,6 +16,7 @@ verification script, and an honest account of what the design protects and what 
 | [docs/04-tablet-guide.md](docs/04-tablet-guide.md) | using it from an Android tablet or phone, and how it compares with Remote-SSH |
 | [docs/05-updating.md](docs/05-updating.md) | taking a new release into an existing install |
 | [docs/06-profiles.md](docs/06-profiles.md) | `strict`, `balanced`, `workstation`: how much friction vs. protection, and the agent gotchas |
+| [docs/07-multi-user-login.md](docs/07-multi-user-login.md) | `--gate`: a password sign-in page that opens *that user's* editor (their groups, Docker included), so you can sign in as any listed user |
 
 ## The idea in one paragraph
 
@@ -47,6 +48,7 @@ reverse proxy (+ optional tunnel) ──► bastion  (SSO + TOTP, session loggin
 |---|---|
 | `forwarder/` | the relay (`forward.py`) and its Dockerfile; published as `ghcr.io/<owner>/codelikehome-forwarder:<version>` |
 | `compose/codelikehome.yaml` | the forwarder service and its internal network, configured through `.env` (see `.env.example`) |
+| `host/gate.py`, `host/run-editor.sh` | the optional sign-in gate and the per-user editor launcher (`--gate`) |
 | `host/install.sh` | idempotent installer for the host half (systemd unit, socket directory, config, sudo cache, verification timer) |
 | `host/verify.sh` | read-only checks; also run hourly by a root timer the installer sets up |
 | `examples/Caddyfile.warpgate` | a reverse-proxy site for the bastion |
