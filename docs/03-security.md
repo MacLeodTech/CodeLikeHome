@@ -157,3 +157,9 @@ session instead of a key on a PC), and the third parties in the path (Cloudflare
 * A malicious extension or a pasted command you run yourself.
 * Keystroke capture on the client device.
 * Zero-days in code-server, Warpgate, Caddy or the browser.
+
+
+## With `--gate`
+
+The sign-in gate adds a root-run password check behind the bastion: see [07-multi-user-login.md](07-multi-user-login.md) for what it adds (per-user editors, a second
+credential) and what it costs (a root service, a lockout an attacker past the bastion can trigger).

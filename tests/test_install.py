@@ -44,3 +44,18 @@ def test_rejects_bad_values():
 
 def _has_group(name):
     return subprocess.run(["getent", "group", name], check=False, capture_output=True).returncode == 0
+
+
+def test_gate_dry_run_lists_gate_files_and_not_the_single_unit():
+    r = dry("--gate", "--profile", "workstation")
+    assert r.returncode == 0
+    for path in ("code-server@.service", "codelikehome-gate.service", "/etc/pam.d/codelikehome", "gate.users", "run-editor", "gate.py"):
+        assert path in r.stdout
+    assert "/etc/systemd/system/code-server.service" not in r.stdout
+    assert "root service that checks passwords" in r.stderr
+
+
+def test_gate_users_are_validated():
+    assert dry("--gate", "--users", "bad name").returncode == 2
+    assert dry("--gate", "--users", "no-such-user-xyz").returncode == 1
+    assert dry("--gate", "--users", "root").returncode == 2

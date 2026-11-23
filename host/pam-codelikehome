@@ -1,0 +1,3 @@
+# PAM service used by codelikehome-gate: the same password check as a console login, and nothing else.
+@include common-auth
+@include common-account

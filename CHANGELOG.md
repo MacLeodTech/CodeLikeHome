@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* `host/install.sh --gate [--users a,b]`: a PAM sign-in page (`host/gate.py`) in front of per-user editors (`code-server@USER`, started on demand by `host/run-editor.sh`). Each
+  user gets their own uid, home, environment and the profile's groups (Docker with `workstation`), and can sign in as a different user at any time. Per-request cookie checks, CSRF
+  token, throttling, session expiry; WebSocket upgrades only are relayed raw. `verify.sh` checks the gate and every user's editor. See docs/07-multi-user-login.md.
+
 * `host/install.sh --profile strict|balanced|workstation`, with `--groups`, `--umask` and `--sudo-timeout` overrides. `strict` is the
   default and is identical to the previous behaviour. The unit's groups and umask are now templated; the choice is recorded in
   `/etc/codelikehome/profile`. A warning is printed whenever the editor will be in the `docker` group.
